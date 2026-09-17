@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Application output — recordings, snapshots, time-lapse sessions and their logs
+Recordings/*
+!Recordings/.gitkeep
+
+# User profiles (the shipped Default.txt is tracked, personal ones are not)
+Profiles/*
+!Profiles/.gitkeep
+!Profiles/Default.txt
+
+# Editor / tooling
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

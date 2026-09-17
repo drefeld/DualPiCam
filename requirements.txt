@@ -1,0 +1,13 @@
+# DualPiCam dependencies. Requires Python 3.9 or newer (3.11 on Raspberry Pi
+# OS Bookworm, which is the tested configuration).
+#
+# On Raspberry Pi OS, install these with apt rather than pip:
+#   sudo apt install -y python3-pyqt5 python3-pyqt5.qtopengl python3-picamera2 libcamera-apps
+#
+# picamera2 and PyAV are not usefully pip-installable there because they need
+# the system libcamera build. This file exists for tooling and for virtual
+# environments created with --system-site-packages.
+
+PyQt5>=5.15
+picamera2>=0.3.26   # 0.3.26 added direct YUV420 -> JPEG encoding, used for snapshots
+av>=10.0
