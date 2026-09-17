@@ -1,6 +1,8 @@
 # DualPiCam
 
-A PyQt5-based application for simultaneously controlling two Raspberry Pi cameras. Supports synchronized video recording, time-lapse photography, and live preview with comprehensive per-camera controls.
+A PyQt5-based application for recording two Raspberry Pi camera streams in sync, with live previews and full per-camera controls. Snapshots and a simple time-lapse mode are included as extras.
+
+![DualPiCam running with two camera previews and per-camera controls](Screenshot_DualPiCam1.png)
 
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)
@@ -18,6 +20,16 @@ A PyQt5-based application for simultaneously controlling two Raspberry Pi camera
 | Cameras   | 2× [Raspberry Pi Camera Module 3](https://www.raspberrypi.com/products/camera-module-3/) |
 | OS        | Raspberry Pi OS Bookworm (64-bit), Python 3.11 |
 | picamera2 | 0.3.26 or newer |
+
+**Tested stable frame rates with both cameras recording** (on the configuration above):
+
+| Resolution | Stable FPS |
+|------------|-----------------|
+| 1920×1080 (1080p) | 30 |
+| 2560×1440 (1440p) | 20 |
+| 3840×2160 (2160p) | 10 |
+
+You might be able to achieve higher framerates, especially at lower resolutions.
 
 > **Note:** DualPiCam has only been tested on the hardware listed above. It may work on other Raspberry Pi models or with other cameras, but this is untested. Some features — in particular autofocus and manual lens position control — rely on hardware present in the Camera Module 3 and will not be available on cameras that do not support them.
 
@@ -39,19 +51,9 @@ A PyQt5-based application for simultaneously controlling two Raspberry Pi camera
 - Editable save path per camera, plus an *Open Folder* button that shows the directory in the system file browser
 - Metadata log file written alongside every recording (resolution, FPS, exposure, gain, contrast, sharpness, lens position, timestamps)
 
-**Time-lapse photography**
-- Capture interval set in seconds with two decimals, from 0.1 s up to a year — fast enough for roughly 10 fps, long enough for once a month
-- Total duration in minutes (0 = until stopped), up to ten years
-- Both fields show a live plain-language readout below them (`6000` seconds reads as `1 hour, 40 minutes, 0 seconds`)
-- Captures land on a fixed grid — one at the start, then one per interval up to the duration, so a 1 minute interval over 2 minutes yields exactly 3 images
-- Millisecond-precision timestamps in filenames
-- Automatic session directory creation
-- Status display (elapsed / remaining, image count)
-- Summary log written at session end
-
-**Snapshots**
-- Single-camera or synchronized dual-camera capture
-- Thread-safe; available while not recording
+**Snapshots and time-lapse**
+- Single-camera or synchronized dual-camera snapshots, available while not recording
+- Time-lapse capture with an interval from 0.1 s to a year and an optional total duration; each session gets its own folder and a summary log
 
 **Camera controls**
 - FPS (1–120; the upper end is only reachable at low resolutions), editable via slider or text field. The frame duration is pinned to the chosen rate, so the preview shows the same exposure behaviour the recording will have
@@ -88,12 +90,6 @@ libcamera-hello --list-cameras
 ```
 
 You should see Camera 0 and Camera 1 listed.
-
----
-
-## Screenshots
-
-> Screenshots will be added after deployment. Run `python3 main.py` on a Raspberry Pi to see the application.
 
 ---
 
@@ -182,18 +178,13 @@ The save-location box accepts either form:
 
 Enter a number of minutes in the field next to the record button. The recording stops automatically when the time elapses. Set to `0` for infinite recording.
 
-### Time-lapse
-
-1. Click **Time-lapse** — a dialog asks for the capture interval (in seconds, two decimals) and the total duration (in minutes; 0 = until stopped). Below each field a live readout spells the value out, so `86400` seconds reads as `1 day, 0 hours, 0 minutes, 0 seconds`.
-2. Images are captured on a fixed grid: one immediately, then one per interval, up to and including the duration.
-3. A blue dot and status text (elapsed | remaining, image count) appear during the session.
-4. Click **Stop Time-lapse** to end early. A summary log is written to the session directory.
-
-If an interval is shorter than a capture actually takes — likely below a second at full resolution — the extra ticks are skipped rather than queued, and the session settles at the fastest rate the camera can sustain. The summary log records the average interval that was actually achieved.
-
 ### Snapshots
 
 Click **Snapshot** at any time while not recording. In linked mode, both cameras capture simultaneously.
+
+### Time-lapse
+
+Click **Time-lapse**, enter the capture interval in seconds and the total duration in minutes (0 = until stopped), and start. A blue dot and a status line show progress, and **Stop Time-lapse** ends the session early. Images and a summary log are saved to a new folder for each session.
 
 ### Profiles
 
@@ -294,7 +285,7 @@ Run `libcamera-hello` in a terminal to verify the cameras work outside the app. 
 Install via `sudo apt install python3-picamera2` (preferred on Raspberry Pi OS) or `pip install picamera2` inside a virtual environment created with `--system-site-packages`.
 
 **Recording drops frames**  
-- Lower the resolution or target FPS. The Pi 5 encodes H.264 in software, so two 2560×1440 streams are a real CPU load.
+- Lower the resolution or target FPS, and stay within the tested limits listed under [Compatibility](#compatibility). The Pi 5 encodes H.264 in software, so two high-resolution streams are a real CPU load.
 - Increase the buffer count (default 16; the field accepts 2–64). More buffers absorb longer stalls at the cost of memory.
 - Use a fast SD card (UHS-I A2 class or better) or an SSD connected via USB 3.
 - Close other applications; the encoder competes with them for CPU.
@@ -303,7 +294,7 @@ Install via `sudo apt install python3-picamera2` (preferred on Raspberry Pi OS) 
 Both must read `Auto` (slider fully left) before auto-exposure resumes — libcamera has a single switch for the pair, so one manual value keeps it off for both. Note also that picamera2 applies control changes on the next camera request, and a request already in flight can swallow one; DualPiCam re-sends every exposure/gain change once after a short delay to cover that. The auto-exposure algorithm then needs a few frames to re-converge, so give it a moment after switching back.
 
 **Time-lapse produces fewer images than expected**  
-At short intervals the camera may not keep up — a full-resolution capture takes well over a second. Ticks arriving while a capture is still running are skipped, so the session runs at the fastest sustainable rate. Check `Average Interval` in the session log to see what was actually achieved, and lower the resolution if you need the interval you asked for.
+Very short intervals can be faster than the camera can capture. Captures that would overlap are skipped, and the session log's `Average Interval` shows the rate actually achieved.
 
 **`LIBCAMERA` errors on startup**  
 These are usually informational and can be ignored. If the app crashes, verify the `libcamera` stack is up to date: `sudo apt upgrade libcamera-apps`.
